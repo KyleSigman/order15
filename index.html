@@ -482,6 +482,21 @@
 }
     </style>
 
+    <!-- ДОБАВЛЕННЫЕ СТИЛИ ДЛЯ VIP КОМНАТЫ -->
+    <style>
+        .room-switch-btn {
+            background: #f0f2f5;
+            border: none;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .room-switch-btn.active {
+            background: #075e54;
+            color: white;
+        }
+    </style>
 
 </head>
 <body>
@@ -501,23 +516,20 @@
             <!-- сюда загрузится список -->
         </div>
     </div>
-    <!-- <div class="header">
-        <div class="logo">🏠 Шверника 15 | Дом Чат</div>
-        <div class="header-right">
-            <div class="vote-alert" id="voteAlert" style="display: none;">📊 Активно голосование!</div>
-            <div class="profile-icon" id="profileIcon">👤</div>
-        </div>
-    </div> -->
     <div class="pinned-message" id="pinnedMessageArea" style="display: none;">📌 <span id="pinnedText"></span></div>
     <div class="tabs">
         <button class="tab-btn active" data-tab="chat">💬 Чат</button>
         <button class="tab-btn" data-tab="announcements">📢 Доска</button>
-        <!-- <button class="tab-btn" data-tab="stories">📖 Хроники</button> -->
         <button class="tab-btn" data-tab="goodmood">😂 Веселое</button>
     </div>
     <div class="content">
         <div id="chat" class="tab-pane active">
             <div class="chat-messages" id="chatMessages"></div>
+            <!-- БЛОК КНОПОК VIP КОМНАТЫ -->
+            <div id="roomSelector" style="display: none; background: white; padding: 8px 12px; border-top: 1px solid #e9edef; gap: 8px;">
+                <button id="mainRoomBtn" class="room-switch-btn active">🏠 Основная</button>
+                <button id="vipRoomBtn" class="room-switch-btn">⭐ VIP</button>
+            </div>
             <div id="editPanel" style="display: none; background: #f0f2f5; padding: 12px; border-top: 1px solid #e9edef;">
                 <div style="font-size: 12px; color: #667781; margin-bottom: 8px;">Редактирование сообщения</div>
                 <div style="display: flex; gap: 8px; align-items: center;">
@@ -531,14 +543,12 @@
             <div class="chat-input-area">
                 <div id="emojiPicker" class="emoji-picker"></div>
                 <div class="input-row">
-                    <!-- <button class="attach-btn" id="attachBtn">📎</button> -->
                     <button class="emoji-btn" id="emojiToggleBtn">😊</button>
                     <div class="message-input-wrapper">
                         <input type="text" id="messageInput" placeholder="Сообщение...">
                     </div>
                     <button class="send-btn" id="sendMsgBtn">➤</button>
                 </div>
-                <!-- <input type="file" id="fileInput" style="display: none;" accept=".txt"> -->
             </div>
         </div>
         <div id="announcements" class="tab-pane"><div class="announcements-list" id="announcementsList"></div></div>
@@ -579,6 +589,11 @@
 
     let currentUserId = localStorage.getItem("userId");
     let currentUserData = null;
+    
+    // НОВЫЕ ПЕРЕМЕННЫЕ ДЛЯ VIP КОМНАТЫ
+    let currentRoom = "main";
+    let currentUnsubscribe = null;
+    let userHasVip = false;
 
     // Эмодзи
     const emojis = ['😀','😃','😄','😁','😆','😅','😂','😊','😇','😉','😌','😍',];
@@ -598,8 +613,6 @@
     const chatMessages = document.getElementById('chatMessages');
     const messageInput = document.getElementById('messageInput');
     const sendBtn = document.getElementById('sendMsgBtn');
-    const attachBtn = document.getElementById('attachBtn');
-    const fileInput = document.getElementById('fileInput');
     const emojiToggleBtn = document.getElementById('emojiToggleBtn');
     const profileIcon = document.getElementById('profileIcon');
     const sidebar = document.getElementById('sidebar');
@@ -649,7 +662,9 @@
                     localStorage.setItem("userId", password);
                     modal.remove();
                     loadUserProfile();
-                    startChatListener();
+                    checkVipAccess().then(() => {
+                        startChatListener();
+                    });
                 } else {
                     alert('Неверный пароль');
                 }
@@ -755,7 +770,9 @@
                     localStorage.setItem("userId", password);
                     modal.remove();
                     loadUserProfile();
-                    startChatListener();
+                    checkVipAccess().then(() => {
+                        startChatListener();
+                    });
                 };
             };
             
@@ -828,225 +845,231 @@
 
     profileIcon.onclick = () => sidebar.classList.toggle('open');
 
-    // Отправка сообщения
+    // НОВЫЕ ФУНКЦИИ ДЛЯ VIP
+    async function activateVipAccess() {
+        if (userHasVip) return;
+        userHasVip = true;
+        await db.collection("neighbours").doc(currentUserId).update({ vip: true });
+        const selector = document.getElementById('roomSelector');
+        if (selector) selector.style.display = 'flex';
+        // alert('⭐ Доступ к VIP комнате открыт!');
+    }
+
+    async function checkVipAccess() {
+        if (!currentUserId) return;
+        const doc = await db.collection("neighbours").doc(currentUserId).get();
+        userHasVip = doc.data()?.vip === true;
+        const selector = document.getElementById('roomSelector');
+        if (selector) selector.style.display = userHasVip ? 'flex' : 'none';
+    }
+    
+    // Отправка сообщения (МОДИФИЦИРОВАНА)
     async function sendMessage() {
-    if(!currentUserId) { showRegisterModal(); return; }
-    let text = messageInput.value.trim();
-    if(!text) return;
-    const msgData = {
-        userId: currentUserId,
-        text: text,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-        seenBy: []
-    };
-    await db.collection("chatcontent").add(msgData);
-    messageInput.value = '';
-}
+        if(!currentUserId) { showRegisterModal(); return; }
+        let text = messageInput.value.trim();
+        if(!text) return;
+        
+        // Проверка команды для VIP
+        if (text === '@@@viproom') {
+            activateVipAccess();
+            messageInput.value = '';
+            return;
+        }
+        
+        const collection = currentRoom === 'main' ? 'chatcontent' : 'viproom';
+        const msgData = {
+            userId: currentUserId,
+            text: text,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            seenBy: []
+        };
+        await db.collection(collection).add(msgData);
+        messageInput.value = '';
+    }
 
-// Чат с подтягиванием имён
-    
-    let unsubscribeChat = null;
-
-
+    // Чат с подтягиванием имён (МОДИФИЦИРОВАН)
     function startChatListener() {
-    if (unsubscribeChat) unsubscribeChat();
-    
-    unsubscribeChat = db.collection("chatcontent")
-        .orderBy("timestamp")
-        .onSnapshot((snapshot) => {
-            snapshot.docChanges().forEach(change => {
-                if (change.type === "added") {
-                    const msg = change.doc.data();
-                    const msgId = change.doc.id;
-                    
-                    db.collection("neighbours").doc(msg.userId).get().then(userDoc => {
-                        const userData = userDoc.exists ? userDoc.data() : { name: "Неизвестный", avatar: "" };
-                        const userName = userData.name;
-                        const userAvatar = userData.avatar || "";
-                        const isSelf = msg.userId === currentUserId;
+        if (currentUnsubscribe) currentUnsubscribe();
+        
+        const collection = currentRoom === 'main' ? 'chatcontent' : 'viproom';
+        
+        currentUnsubscribe = db.collection(collection)
+            .orderBy("timestamp")
+            .onSnapshot((snapshot) => {
+                snapshot.docChanges().forEach(change => {
+                    if (change.type === "added") {
+                        const msg = change.doc.data();
+                        const msgId = change.doc.id;
                         
-                        const messageDiv = document.createElement('div');
-                        messageDiv.id = `msg-${msgId}`;
-                        messageDiv.className = `message ${isSelf ? 'message-self' : 'message-other'}`;
-                        
-                        // Если своё сообщение — добавляем класс для редактирования
-                        if (isSelf) {
-                            messageDiv.style.cursor = 'pointer';
-                            messageDiv.classList.add('editable-message');
-                        }
-                        
-                        const avatarHtml = userAvatar 
-                            ? `<img src="${userAvatar}" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; flex-shrink: 0;">`
-                            : `<div style="width: 36px; height: 36px; border-radius: 50%; background: #075e54; color: white; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;">${userName.charAt(0).toUpperCase()}</div>`;
-                        
-                        const editedMark = msg.edited ? ' <span style="font-size: 10px; color: #667781;">(ред.)</span>' : '';
-                        const bubbleContent = `<div class="bubble">${escapeHtml(msg.text || '')}${editedMark}</div>`;
-                        
-                        const seenCount = msg.seenBy ? msg.seenBy.length : 0;
-                        
-                        messageDiv.innerHTML = `
-                            <div style="display: flex; align-items: flex-start; gap: 8px;">
-                                ${avatarHtml}
-                                <div style="flex: 1;">
-                                    ${bubbleContent}
-                                    <div class="msg-info">
-                                        <span class="msg-name">${escapeHtml(userName)}</span>
-                                        <span>${msg.timestamp ? msg.timestamp.toDate().toLocaleTimeString() : ''}</span>
-                                        <button class="seen-btn" data-id="${msgId}">👌 ${seenCount}</button>
+                        db.collection("neighbours").doc(msg.userId).get().then(userDoc => {
+                            const userData = userDoc.exists ? userDoc.data() : { name: "Неизвестный", avatar: "" };
+                            const userName = userData.name;
+                            const userAvatar = userData.avatar || "";
+                            const isSelf = msg.userId === currentUserId;
+                            
+                            const messageDiv = document.createElement('div');
+                            messageDiv.id = `msg-${msgId}`;
+                            messageDiv.className = `message ${isSelf ? 'message-self' : 'message-other'}`;
+                            
+                            if (isSelf) {
+                                messageDiv.style.cursor = 'pointer';
+                                messageDiv.classList.add('editable-message');
+                            }
+                            
+                            const avatarHtml = userAvatar 
+                                ? `<img src="${userAvatar}" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; flex-shrink: 0;">`
+                                : `<div style="width: 36px; height: 36px; border-radius: 50%; background: #075e54; color: white; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;">${userName.charAt(0).toUpperCase()}</div>`;
+                            
+                            const editedMark = msg.edited ? ' <span style="font-size: 10px; color: #667781;">(ред.)</span>' : '';
+                            const bubbleContent = `<div class="bubble">${escapeHtml(msg.text || '')}${editedMark}</div>`;
+                            
+                            const seenCount = msg.seenBy ? msg.seenBy.length : 0;
+                            
+                            messageDiv.innerHTML = `
+                                <div style="display: flex; align-items: flex-start; gap: 8px;">
+                                    ${avatarHtml}
+                                    <div style="flex: 1;">
+                                        ${bubbleContent}
+                                        <div class="msg-info">
+                                            <span class="msg-name">${escapeHtml(userName)}</span>
+                                            <span>${msg.timestamp ? msg.timestamp.toDate().toLocaleTimeString() : ''}</span>
+                                            <button class="seen-btn" data-id="${msgId}" data-col="${collection}">👌 ${seenCount}</button>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        `;
-                        
-                        // Добавляем обработчик клика для редактирования
-                        if (isSelf) {
+                            `;
+                            
+                            if (isSelf) {
+                                const bubbleDiv = messageDiv.querySelector('.bubble');
+                                bubbleDiv.onclick = (e) => {
+                                    e.stopPropagation();
+                                    openEditPanel(msgId, msg.text || '');
+                                };
+                            }
+                            
+                            chatMessages.appendChild(messageDiv);
+                            chatMessages.scrollTop = chatMessages.scrollHeight;
+                        });
+                    } else if (change.type === "modified") {
+                        const msg = change.doc.data();
+                        const msgId = change.doc.id;
+                        const seenCount = msg.seenBy ? msg.seenBy.length : 0;
+                        const seenBtn = document.querySelector(`#msg-${msgId} .seen-btn`);
+                        if (seenBtn) {
+                            seenBtn.textContent = `👌 ${seenCount}`;
+                        }
+                        const messageDiv = document.getElementById(`msg-${msgId}`);
+                        if (messageDiv) {
                             const bubbleDiv = messageDiv.querySelector('.bubble');
-                            bubbleDiv.onclick = (e) => {
-                                e.stopPropagation();
-                                openEditPanel(msgId, msg.text || '');
-                            };
-                        }
-                        
-                        chatMessages.appendChild(messageDiv);
-                        chatMessages.scrollTop = chatMessages.scrollHeight;
-                    });
-                } else if (change.type === "modified") {
-                    const msg = change.doc.data();
-                    const msgId = change.doc.id;
-                    const seenCount = msg.seenBy ? msg.seenBy.length : 0;
-                    const seenBtn = document.querySelector(`#msg-${msgId} .seen-btn`);
-                    if (seenBtn) {
-                        seenBtn.textContent = `👌 ${seenCount}`;
-                    }
-                    
-                    // Обновляем текст сообщения если оно было отредактировано
-                    const messageDiv = document.getElementById(`msg-${msgId}`);
-                    if (messageDiv) {
-                        const bubbleDiv = messageDiv.querySelector('.bubble');
-                        if (bubbleDiv) {
-                            const editedMark = msg.edited ? ' <span style="font-size: 10px; color: #667781;">(ред.)</span>' : '';
-                            bubbleDiv.innerHTML = escapeHtml(msg.text || '') + editedMark;
+                            if (bubbleDiv) {
+                                const editedMark = msg.edited ? ' <span style="font-size: 10px; color: #667781;">(ред.)</span>' : '';
+                                bubbleDiv.innerHTML = escapeHtml(msg.text || '') + editedMark;
+                            }
                         }
                     }
-                }
+                });
+            });
+    }
+
+    // Кнопка "видел" (МОДИФИЦИРОВАН)
+    chatMessages.addEventListener('click', async (e) => {
+        if(e.target.classList.contains('seen-btn')) {
+            const msgId = e.target.dataset.id;
+            const collectionName = e.target.dataset.col;
+            const msgRef = db.collection(collectionName).doc(msgId);
+            
+            const msgDoc = await msgRef.get();
+            const seenBy = msgDoc.data().seenBy || [];
+            
+            if(seenBy.includes(currentUserId)) {
+                const newSeenBy = seenBy.filter(id => id !== currentUserId);
+                await msgRef.update({ seenBy: newSeenBy });
+                e.target.textContent = `👌 ${newSeenBy.length}`;
+            } else {
+                const newSeenBy = [...seenBy, currentUserId];
+                await msgRef.update({ seenBy: newSeenBy });
+                e.target.textContent = `👌 ${newSeenBy.length}`;
+            }
+        }
+    });
+
+    // Загрузка списка жильцов
+    async function loadResidents() {
+        const snapshot = await db.collection("neighbours").get();
+        const residents = [];
+        snapshot.forEach(doc => {
+            residents.push({
+                id: doc.id,
+                name: doc.data().name,
+                avatar: doc.data().avatar
             });
         });
-}
-
-    // Кнопка "видел"
-    chatMessages.addEventListener('click', async (e) => {
-    if(e.target.classList.contains('seen-btn')) {
-        const msgId = e.target.dataset.id;
-        const msgRef = db.collection("chatcontent").doc(msgId);
         
-        const msgDoc = await msgRef.get();
-        const seenBy = msgDoc.data().seenBy || [];
+        document.getElementById('residentsCount').textContent = residents.length;
         
-        if(seenBy.includes(currentUserId)) {
-            // Убираем метку
-            const newSeenBy = seenBy.filter(id => id !== currentUserId);
-            await msgRef.update({ seenBy: newSeenBy });
-            e.target.textContent = `👌 ${newSeenBy.length}`;
-        } else {
-            // Добавляем метку
-            const newSeenBy = [...seenBy, currentUserId];
-            await msgRef.update({ seenBy: newSeenBy });
-            e.target.textContent = `👌 ${newSeenBy.length}`;
-        }
-    }
-});
-
-// Загрузка списка жильцов
-async function loadResidents() {
-    const snapshot = await db.collection("neighbours").get();
-    const residents = [];
-    snapshot.forEach(doc => {
-        residents.push({
-            id: doc.id,
-            name: doc.data().name,
-            avatar: doc.data().avatar
-        });
-    });
-    
-    document.getElementById('residentsCount').textContent = residents.length;
-    
-    const container = document.getElementById('residentsList');
-    container.innerHTML = residents.map(r => {
-        const avatarHtml = r.avatar 
-            ? `<img src="${r.avatar}" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover;">`
-            : `<div style="width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center; font-size: 12px;">${r.name.charAt(0).toUpperCase()}</div>`;
-        
-        return `
-            <div style="display: flex; align-items: center; gap: 8px; padding: 6px 0;">
-                ${avatarHtml}
-                <span>${escapeHtml(r.name)}</span>
-            </div>
-        `;
-    }).join('');
-}
-
-// Клик по строке с количеством жильцов
-let expanded = false;
-document.getElementById('residentsPreview').onclick = (e) => {
-    e.stopPropagation();
-    expanded = !expanded;
-    const list = document.getElementById('residentsList');
-    const header = document.getElementById('header');
-    
-    if (expanded) {
-        list.style.display = 'block';
-        header.classList.add('expanded');
-        loadResidents();
-    } else {
-        list.style.display = 'none';
-        header.classList.remove('expanded');
-    }
-};
-
-    function loadAnnouncements() {
-    const container = document.getElementById('announcementsList');
-    
-    // Статическое объявление
-    container.innerHTML = `
-        <div class="card" style="background: #e9f0e6; border-left: 4px solid #075e54; padding: 15px">
-            <div class="card-title">🔑 Ключи для чата.</div> <br>
-            <div>Ключ доступа можно получить у администратора в <strong>квартире 666</strong>. Обращайтесь!</div>
-        </div>
-    `;
-}
-    // Анекдоты
-    function loadJokes() {
-    db.collection("content").where("type", "==", "joke").limit(50).onSnapshot(snapshot => {
-        const container = document.getElementById('jokesList');
-        container.innerHTML = '';
-        snapshot.forEach(doc => {
-            const joke = doc.data();
-            container.innerHTML += `
-                <div class="card">
-                    <div>${marked.parse(joke.text)}</div>
-                    <div class="card-meta">
-                        <span>👌 ${joke.seenBy?.length || 0}</span>
-                        <button class="seen-btn" data-id="${doc.id}" data-col="content">Видел</button>
-                    </div>
+        const container = document.getElementById('residentsList');
+        container.innerHTML = residents.map(r => {
+            const avatarHtml = r.avatar 
+                ? `<img src="${r.avatar}" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover;">`
+                : `<div style="width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center; font-size: 12px;">${r.name.charAt(0).toUpperCase()}</div>`;
+            
+            return `
+                <div style="display: flex; align-items: center; gap: 8px; padding: 6px 0;">
+                    ${avatarHtml}
+                    <span>${escapeHtml(r.name)}</span>
                 </div>
             `;
-        });
-    });
-}
+        }).join('');
+    }
+
+    // Клик по строке с количеством жильцов
+    let expanded = false;
+    document.getElementById('residentsPreview').onclick = (e) => {
+        e.stopPropagation();
+        expanded = !expanded;
+        const list = document.getElementById('residentsList');
+        const header = document.getElementById('header');
+        
+        if (expanded) {
+            list.style.display = 'block';
+            header.classList.add('expanded');
+            loadResidents();
+        } else {
+            list.style.display = 'none';
+            header.classList.remove('expanded');
+        }
+    };
+
+    function loadAnnouncements() {
+        const container = document.getElementById('announcementsList');
+        container.innerHTML = `
+            <div class="card" style="background: #e9f0e6; border-left: 4px solid #075e54; padding: 15px">
+                <div class="card-title">Объявление.</div> <br>
+                <div>Пожалуйста не теряйте пароль, если он был автоматчиески сгенерирован при регистрации. <br> <br> Спасибо.</div>
+            </div>
+        `;
+    }
     
-// function loadJokes() {
-    //     db.collection("content").where("type", "==", "joke").limit(50).onSnapshot(snapshot => {
-    //         const container = document.getElementById('jokesList');
-    //         container.innerHTML = '';
-    //         snapshot.forEach(doc => {
-    //             const joke = doc.data();
-    //             container.innerHTML += `<div class="card"><div>${joke.text}</div><div class="card-meta"><span>👌 ${joke.seenBy?.length || 0}</span><button class="seen-btn" data-id="${doc.id}" data-col="content">Видел</button></div></div>`;
-    //         });
-    //     });
-    // }
+    function loadJokes() {
+        db.collection("content").where("type", "==", "joke").limit(50).onSnapshot(snapshot => {
+            const container = document.getElementById('jokesList');
+            container.innerHTML = '';
+            snapshot.forEach(doc => {
+                const joke = doc.data();
+                container.innerHTML += `
+                    <div class="card">
+                        <div>${marked.parse(joke.text)}</div>
+                        <div class="card-meta">
+                            <span>👌 ${joke.seenBy?.length || 0}</span>
+                            <button class="seen-btn" data-id="${doc.id}" data-col="content">Видел</button>
+                        </div>
+                    </div>
+                `;
+            });
+        });
+    }
     
     // Обработка "видел" для объявлений и анекдотов
-    
     document.getElementById('announcementsList')?.addEventListener('click', async (e) => {
         if(e.target.classList.contains('seen-btn')) {
             const id = e.target.dataset.id;
@@ -1089,97 +1112,120 @@ document.getElementById('residentsPreview').onclick = (e) => {
     sendBtn.onclick = sendMessage;
     messageInput.onkeypress = (e) => { if(e.key === 'Enter') sendMessage(); };
 
-    if(!currentUserId) showRegisterModal();
-    else { loadUserProfile(); startChatListener(); }
+    // Редактирование сообщений (МОДИФИЦИРОВАНО)
+    let editingMsgId = null;
+    let editingCollection = null;
+
+    const editPanel = document.getElementById('editPanel');
+    const editMessageInput = document.getElementById('editMessageInput');
+    const saveEditBtn = document.getElementById('saveEditBtn');
+    const cancelEditBtn = document.getElementById('cancelEditBtn');
+
+    function closeEditPanel() {
+        editPanel.style.display = 'none';
+        editingMsgId = null;
+        editingCollection = null;
+        editMessageInput.value = '';
+    }
+
+    function openEditPanel(msgId, currentText) {
+        editingMsgId = msgId;
+        editingCollection = currentRoom === 'main' ? 'chatcontent' : 'viproom';
+        editMessageInput.value = currentText;
+        editPanel.style.display = 'block';
+        editMessageInput.focus();
+    }
+
+    saveEditBtn.onclick = async () => {
+        if (!editingMsgId || !editingCollection) return;
+        const newText = editMessageInput.value.trim();
+        if (!newText) return;
+        
+        await db.collection(editingCollection).doc(editingMsgId).update({
+            text: newText,
+            edited: true,
+            editedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        closeEditPanel();
+    };
+
+    cancelEditBtn.onclick = closeEditPanel;
+    
+    // Функция переключения комнат
+    function switchRoom(room) {
+        if (currentRoom === room) return;
+        currentRoom = room;
+        document.getElementById('chatMessages').innerHTML = '';
+        if (currentUnsubscribe) {
+            currentUnsubscribe();
+            currentUnsubscribe = null;
+        }
+        startChatListener();
+        const mainBtn = document.getElementById('mainRoomBtn');
+        const vipBtn = document.getElementById('vipRoomBtn');
+        if (mainBtn) mainBtn.classList.toggle('active', room === 'main');
+        if (vipBtn) vipBtn.classList.toggle('active', room === 'vip');
+    }
+
+    // Логаут
+    document.getElementById('logoutBtn').onclick = () => {
+        if (confirm('Выйти из аккаунта?')) {
+            localStorage.removeItem('userId');
+            location.reload();
+        }
+    };
+
+    // Удаление аккаунта
+    document.getElementById('deleteAccountBtn').onclick = async () => {
+        if (!confirm('ВНИМАНИЕ! Удалить аккаунт и все ваши сообщения? Отменить нельзя.')) return;
+        
+        const confirmName = prompt('Введите ваше имя для подтверждения:');
+        if (confirmName !== currentUserData?.name) {
+            alert('Имя не совпадает. Удаление отменено.');
+            return;
+        }
+        
+        try {
+            const messages = await db.collection('chatcontent').where('userId', '==', currentUserId).get();
+            const vipMessages = await db.collection('viproom').where('userId', '==', currentUserId).get();
+            const batch = db.batch();
+            messages.forEach(doc => batch.delete(doc.ref));
+            vipMessages.forEach(doc => batch.delete(doc.ref));
+            await batch.commit();
+            
+            await db.collection('neighbours').doc(currentUserId).delete();
+            
+            localStorage.removeItem('userId');
+            alert('Аккаунт удалён');
+            location.reload();
+        } catch (error) {
+            console.error('Ошибка удаления:', error);
+            alert('Ошибка при удалении');
+        }
+    };
+    
+    document.getElementById('closeSidebarBtn').onclick = () => {
+        sidebar.classList.remove('open');
+    };
+
+    // ИНИЦИАЛИЗАЦИЯ (МОДИФИЦИРОВАНА)
+    if(!currentUserId) {
+        showRegisterModal();
+    } else {
+        loadUserProfile();
+        checkVipAccess().then(() => {
+            startChatListener();
+        });
+    }
     loadAnnouncements();
     loadResidents();
     loadJokes();
 
-    document.getElementById('closeSidebarBtn').onclick = () => {
-    sidebar.classList.remove('open');
-};
-</script>
-
-<script>
-    // Логаут
-document.getElementById('logoutBtn').onclick = () => {
-    if (confirm('Выйти из аккаунта?')) {
-        localStorage.removeItem('userId');
-        location.reload();
-    }
-};
-
-// Удаление аккаунта
-document.getElementById('deleteAccountBtn').onclick = async () => {
-    if (!confirm('ВНИМАНИЕ! Удалить аккаунт и все ваши сообщения? Отменить нельзя.')) return;
-    
-    const confirmName = prompt('Введите ваше имя для подтверждения:');
-    if (confirmName !== currentUserData?.name) {
-        alert('Имя не совпадает. Удаление отменено.');
-        return;
-    }
-    
-    try {
-        // Удаляем все сообщения пользователя
-        const messages = await db.collection('chatcontent').where('userId', '==', currentUserId).get();
-        const batch = db.batch();
-        messages.forEach(doc => batch.delete(doc.ref));
-        await batch.commit();
-        
-        // Удаляем профиль
-        await db.collection('neighbours').doc(currentUserId).delete();
-        
-        localStorage.removeItem('userId');
-        alert('Аккаунт удалён');
-        location.reload();
-    } catch (error) {
-        console.error('Ошибка удаления:', error);
-        alert('Ошибка при удалении');
-    }
-};
-</script>
-    
-<script>
-    // Редактирование сообщений
-let editingMsgId = null;
-
-const editPanel = document.getElementById('editPanel');
-const editMessageInput = document.getElementById('editMessageInput');
-const saveEditBtn = document.getElementById('saveEditBtn');
-const cancelEditBtn = document.getElementById('cancelEditBtn');
-
-function closeEditPanel() {
-    editPanel.style.display = 'none';
-    editingMsgId = null;
-    editMessageInput.value = '';
-}
-
-function openEditPanel(msgId, currentText) {
-    editingMsgId = msgId;
-    editMessageInput.value = currentText;
-    editPanel.style.display = 'block';
-    editMessageInput.focus();
-}
-
-saveEditBtn.onclick = async () => {
-    if (!editingMsgId) return;
-    const newText = editMessageInput.value.trim();
-    if (!newText) return;
-    
-    await db.collection("chatcontent").doc(editingMsgId).update({
-        text: newText,
-        edited: true,
-        editedAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    
-    closeEditPanel();
-};
-
-cancelEditBtn.onclick = closeEditPanel;
+    document.getElementById('mainRoomBtn')?.addEventListener('click', () => switchRoom('main'));
+    document.getElementById('vipRoomBtn')?.addEventListener('click', () => switchRoom('vip'));
 
 </script>
-
-
 
 </body>
 </html>
