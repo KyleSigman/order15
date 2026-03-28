@@ -536,10 +536,21 @@
                     <div style="flex: 1; background: white; border-radius: 20px; padding: 8px 16px;">
                         <input type="text" id="editMessageInput" style="width: 100%; border: none; outline: none; font-size: 15px;" placeholder="Введите новый текст...">
                     </div>
+                    <button id="saveEditBtn" style="background: #075e54; border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer;" title="Сохранить">✓</button>
+                    <button id="deleteMsgBtn" style="background: #d32f2f; border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer;" title="Удалить">⛔</button>
+                    <button id="cancelEditBtn" style="background: #667781; border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer;" title="Отмена">✕</button>
+                </div>
+            </div>
+            <!-- <div id="editPanel" style="display: none; background: #f0f2f5; padding: 12px; border-top: 1px solid #e9edef;">
+                <div style="font-size: 12px; color: #667781; margin-bottom: 8px;">Редактирование сообщения</div>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <div style="flex: 1; background: white; border-radius: 20px; padding: 8px 16px;">
+                        <input type="text" id="editMessageInput" style="width: 100%; border: none; outline: none; font-size: 15px;" placeholder="Введите новый текст...">
+                    </div>
                     <button id="saveEditBtn" style="background: #075e54; border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer;">✓</button>
                     <button id="cancelEditBtn" style="background: #667781; border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer;">✕</button>
                 </div>
-            </div>
+            </div> -->
             <div class="chat-input-area">
                 <div id="emojiPicker" class="emoji-picker"></div>
                 <div class="input-row">
@@ -633,24 +644,47 @@
     
     let mode = 'login';
     
+    function generatePassword() {
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        let pass = '';
+        for (let i = 0; i < 5; i++) {
+            pass += chars[Math.floor(Math.random() * chars.length)];
+        }
+        return pass;
+    }
+    
     function renderModal() {
         if (mode === 'login') {
             modal.innerHTML = `
                 <div class="modal-content" style="width: 320px; max-width: 90%; text-align: center;">
                     <h3>🏠 Шверника 15 | Дом Чат</h3>
-                    <p style="font-size: 14px; color: #666; margin: 8px 0;">Введите пароль</p>
-                    <input type="text" id="loginPassword" placeholder="Пароль" maxlength="5" style="width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 12px;">
-                    <button id="loginBtn" style="background: #075e54; color: white; border: none; padding: 12px; border-radius: 24px; width: 100%; margin: 8px 0; cursor: pointer;">Войти</button>
-                    <div style="margin-top: 16px;">
-                        <span id="switchToRegister" style="color: #075e54; cursor: pointer; font-size: 14px;">✨ Создать профиль</span>
+                    
+                    <div style="background: #e9f0e6; padding: 12px; border-radius: 12px; margin: 12px 0; text-align: left;">
+    <div style="font-weight: 600; margin-bottom: 8px;">🔑 Введите пароль</div>
+    <div style="font-size: 12px; color: #1f2f36;">• Для входа нужен только пароль — он сгенерируется автоматически при регистрации</div>
+    <div style="font-size: 12px; color: #1f2f36; margin-top: 4px;">• Если вы впервые — нажмите <strong>«Создать профиль»</strong> и нажмите 🎲 </div>
+</div>
+                    
+                    <input type="text" id="loginPassword" placeholder="Пароль (5 символов)" maxlength="5" style="width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 12px; text-transform: uppercase; text-align: center; font-size: 13px; letter-spacing: 2px;">
+                    
+                    <button id="loginBtn" style="background: #075e54; color: white; border: none; padding: 12px; border-radius: 24px; width: 100%; margin: 8px 0; cursor: pointer; font-weight: 600;">Войти</button>
+                    
+                    <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #e9edef;">
+                        <p style="font-size: 13px; color: #667781; margin-bottom: 8px;">✨ Впервые здесь?</p>
+                        <button id="switchToRegister" style="background: transparent; border: 1px solid #075e54; color: #075e54; padding: 10px 16px; border-radius: 24px; width: 100%; cursor: pointer; font-weight: 500;">Создать профиль</button>
                     </div>
                 </div>
             `;
             
             document.getElementById('loginBtn').onclick = async () => {
-                const password = document.getElementById('loginPassword').value.trim();
+                const password = document.getElementById('loginPassword').value.trim().toUpperCase();
                 if (!password) {
                     alert('Введите пароль');
+                    return;
+                }
+                
+                if (password.length !== 5) {
+                    alert('Пароль должен быть 5 символов');
                     return;
                 }
                 
@@ -684,12 +718,23 @@
             modal.innerHTML = `
                 <div class="modal-content" style="width: 320px; max-width: 90%; text-align: center;">
                     <h3>🏠 Шверника 15 | Дом Чат</h3>
-                    <input type="text" id="userName" placeholder="Ваше имя (можно изменить)" style="width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 12px;">
-                    <div style="display: flex; gap: 8px; margin: 8px 0;">
-                        <input type="text" id="userPassword" placeholder="Пароль (5 символов)" maxlength="5" style="flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 12px;">
-                        <button id="generatePasswordBtn" style="background: #667781; color: white; border: none; padding: 0 16px; border-radius: 12px; cursor: pointer;">🎲</button>
+                    
+                    <div style="background: #e9f0e6; padding: 12px; border-radius: 12px; margin: 12px 0;">
+                        <div style="font-weight: 600; margin-bottom: 6px;">🎲 Как получить пароль?</div>
+                        <div style="font-size: 12px; color: #1f2f36;">1. Введите ваше имя</div>
+                        <div style="font-size: 12px; color: #1f2f36;">2. Нажмите кнопку 🎲 — пароль появится сам</div>
+                        <div style="font-size: 12px; color: #1f2f36;">3. Нажмите «Зарегистрироваться»</div>
                     </div>
-                    <button id="registerBtn" style="background: #075e54; color: white; border: none; padding: 12px; border-radius: 24px; width: 100%; margin: 8px 0; cursor: pointer;">Зарегистрироваться</button>
+                    
+                    <input type="text" id="userName" placeholder="Ваше имя (можно изменить)" style="width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 12px; font-size: 16px;">
+                    
+                    <div style="display: flex; gap: 8px; margin: 12px 0;">
+                        <input type="text" id="userPassword" placeholder="Пароль" maxlength="5" style="flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 12px; background: #f9f9f9; text-align: center; font-size: 18px; letter-spacing: 3px; font-family: monospace;" readonly value="">
+                        <button id="generatePasswordBtn" style="background: #075e54; color: white; border: none; padding: 0 20px; border-radius: 12px; cursor: pointer; font-size: 24px;">🎲</button>
+                    </div>
+                    
+                    <button id="registerBtn" style="background: #075e54; color: white; border: none; padding: 12px; border-radius: 24px; width: 100%; margin: 8px 0; cursor: pointer; font-weight: 600;">Зарегистрироваться</button>
+                    
                     <div style="margin-top: 16px;">
                         <span id="switchToLogin" style="color: #667781; cursor: pointer; font-size: 14px;">← Уже есть пароль? Войти</span>
                     </div>
@@ -699,25 +744,24 @@
             const passwordInput = document.getElementById('userPassword');
             
             document.getElementById('generatePasswordBtn').onclick = () => {
-                const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-                let pass = '';
-                for (let i = 0; i < 5; i++) {
-                    pass += chars[Math.floor(Math.random() * chars.length)];
-                }
-                passwordInput.value = pass;
+                const newPass = generatePassword();
+                passwordInput.value = newPass;
+                passwordInput.style.background = '#e9f0e6';
+                setTimeout(() => { passwordInput.style.background = '#f9f9f9'; }, 200);
             };
             
             document.getElementById('registerBtn').onclick = async () => {
                 const name = document.getElementById('userName').value.trim();
                 const password = passwordInput.value.trim();
                 
-                if (!name || !password) {
-                    alert('Заполните имя и пароль');
+                if (!name) {
+                    alert('Введите имя');
+                    document.getElementById('userName').focus();
                     return;
                 }
                 
-                if (password.length !== 5) {
-                    alert('Пароль должен быть 5 символов');
+                if (!password || password.length !== 5) {
+                    alert('Нажмите 🎲, чтобы сгенерировать пароль');
                     return;
                 }
                 
@@ -725,7 +769,8 @@
                 const userDoc = await userRef.get();
                 
                 if (userDoc.exists) {
-                    alert('Этот пароль уже занят. Придумайте другой.');
+                    alert('Этот пароль уже занят. Нажмите 🎲 для генерации нового');
+                    passwordInput.value = '';
                     return;
                 }
                 
@@ -737,14 +782,15 @@
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
                 
-                // Показываем поздравление с паролем
                 modal.innerHTML = `
                     <div class="modal-content" style="width: 320px; max-width: 90%; text-align: center;">
                         <h3>🎉 Добро пожаловать, ${escapeHtml(name)}!</h3>
                         <p style="font-size: 14px; color: #666; margin: 8px 0;">Ваш пароль для входа:</p>
-                        <canvas id="finalPasswordCanvas" width="200" height="60" style="display: block; margin: 8px auto; border: 1px solid #ddd; border-radius: 8px; background: white;"></canvas>
-                        <button id="downloadFinalBtn" style="background: #075e54; color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 14px; margin: 8px;">💾 Скачать картинку</button>
+                        <div style="background: #075e54; color: white; padding: 16px; border-radius: 16px; margin: 12px 0; font-family: monospace; font-size: 28px; letter-spacing: 6px;">${escapeHtml(password)}</div>
+                        <canvas id="finalPasswordCanvas" width="200" height="60" style="display: none;"></canvas>
+                        <button id="downloadFinalBtn" style="background: #667781; color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 14px; margin: 8px;">💾 Скачать картинку</button>
                         <button id="enterChatBtn" style="background: #075e54; color: white; border: none; padding: 12px; border-radius: 24px; width: 100%; margin: 8px 0; cursor: pointer;">Войти в чат</button>
+                        <p style="font-size: 11px; color: #667781; margin-top: 12px;">Сохраните пароль! Он нужен для входа.</p>
                     </div>
                 `;
                 
@@ -785,6 +831,338 @@
     
     renderModal();
 }
+
+//     function showRegisterModal() {
+//     const modal = document.createElement('div');
+//     modal.className = 'modal';
+//     modal.style.display = 'flex';
+//     modal.style.alignItems = 'center';
+//     modal.style.justifyContent = 'center';
+//     document.body.appendChild(modal);
+    
+//     let mode = 'login';
+    
+//     function generatePassword() {
+//         const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+//         let pass = '';
+//         for (let i = 0; i < 5; i++) {
+//             pass += chars[Math.floor(Math.random() * chars.length)];
+//         }
+//         return pass;
+//     }
+    
+//     function renderModal() {
+//         if (mode === 'login') {
+//             modal.innerHTML = `
+//                 <div class="modal-content" style="width: 320px; max-width: 90%; text-align: center;">
+//                     <h3>🏠 Шверника 15 | Дом Чат</h3>
+//                     <p style="font-size: 14px; color: #666; margin: 8px 0;">Введите пароль</p>
+//                     <input type="text" id="loginPassword" placeholder="Пароль" maxlength="5" style="width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 12px;">
+//                     <button id="loginBtn" style="background: #075e54; color: white; border: none; padding: 12px; border-radius: 24px; width: 100%; margin: 8px 0; cursor: pointer;">Войти</button>
+//                     <div style="margin-top: 16px;">
+//                         <span id="switchToRegister" style="color: #075e54; cursor: pointer; font-size: 14px;">✨ Создать профиль</span>
+//                     </div>
+//                 </div>
+//             `;
+            
+//             document.getElementById('loginBtn').onclick = async () => {
+//                 const password = document.getElementById('loginPassword').value.trim();
+//                 if (!password) {
+//                     alert('Введите пароль');
+//                     return;
+//                 }
+                
+//                 const userRef = db.collection("neighbours").doc(password);
+//                 const userDoc = await userRef.get();
+                
+//                 if (userDoc.exists) {
+//                     currentUserId = password;
+//                     localStorage.setItem("userId", password);
+//                     modal.remove();
+//                     loadUserProfile();
+//                     checkVipAccess().then(() => {
+//                         startChatListener();
+//                     });
+//                 } else {
+//                     alert('Неверный пароль');
+//                 }
+//             };
+            
+//             document.getElementById('loginPassword').onkeypress = (e) => {
+//                 if (e.key === 'Enter') {
+//                     document.getElementById('loginBtn').click();
+//                 }
+//             };
+            
+//             document.getElementById('switchToRegister').onclick = () => {
+//                 mode = 'register';
+//                 renderModal();
+//             };
+//         } else {
+//             // РЕГИСТРАЦИЯ: поле пароля ПУСТОЕ, только для чтения, заполняется по кнопке
+//             modal.innerHTML = `
+//                 <div class="modal-content" style="width: 320px; max-width: 90%; text-align: center;">
+//                     <h3>🏠 Шверника 15 | Дом Чат</h3>
+//                     <input type="text" id="userName" placeholder="Ваше имя (можно изменить)" style="width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 12px;">
+//                     <div style="display: flex; gap: 8px; margin: 8px 0;">
+//                         <input type="text" id="userPassword" placeholder="Пароль (5 символов)" maxlength="5" style="flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 12px;" readonly value="">
+//                         <button id="generatePasswordBtn" style="background: #667781; color: white; border: none; padding: 0 16px; border-radius: 12px; cursor: pointer;">🎲</button>
+//                     </div>
+//                     <button id="registerBtn" style="background: #075e54; color: white; border: none; padding: 12px; border-radius: 24px; width: 100%; margin: 8px 0; cursor: pointer;">Зарегистрироваться</button>
+//                     <div style="margin-top: 16px;">
+//                         <span id="switchToLogin" style="color: #667781; cursor: pointer; font-size: 14px;">← Уже есть пароль? Войти</span>
+//                     </div>
+//                 </div>
+//             `;
+            
+//             const passwordInput = document.getElementById('userPassword');
+            
+//             document.getElementById('generatePasswordBtn').onclick = () => {
+//                 const newPass = generatePassword();
+//                 passwordInput.value = newPass;
+//             };
+            
+//             document.getElementById('registerBtn').onclick = async () => {
+//                 const name = document.getElementById('userName').value.trim();
+//                 const password = passwordInput.value.trim();
+                
+//                 if (!name) {
+//                     alert('Введите имя');
+//                     return;
+//                 }
+                
+//                 if (!password || password.length !== 5) {
+//                     alert('Сначала нажмите 🎲, чтобы сгенерировать пароль (5 символов)');
+//                     return;
+//                 }
+                
+//                 const userRef = db.collection("neighbours").doc(password);
+//                 const userDoc = await userRef.get();
+                
+//                 if (userDoc.exists) {
+//                     alert('Этот пароль уже занят. Нажмите 🎲 для генерации нового.');
+//                     return;
+//                 }
+                
+//                 await userRef.set({
+//                     name: name,
+//                     phone: "",
+//                     flat: "",
+//                     avatar: "",
+//                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
+//                 });
+                
+//                 modal.innerHTML = `
+//                     <div class="modal-content" style="width: 320px; max-width: 90%; text-align: center;">
+//                         <h3>🎉 Добро пожаловать, ${escapeHtml(name)}!</h3>
+//                         <p style="font-size: 14px; color: #666; margin: 8px 0;">Ваш пароль для входа:</p>
+//                         <canvas id="finalPasswordCanvas" width="200" height="60" style="display: block; margin: 8px auto; border: 1px solid #ddd; border-radius: 8px; background: white;"></canvas>
+//                         <button id="downloadFinalBtn" style="background: #075e54; color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 14px; margin: 8px;">💾 Скачать картинку</button>
+//                         <button id="enterChatBtn" style="background: #075e54; color: white; border: none; padding: 12px; border-radius: 24px; width: 100%; margin: 8px 0; cursor: pointer;">Войти в чат</button>
+//                     </div>
+//                 `;
+                
+//                 const finalCanvas = document.getElementById('finalPasswordCanvas');
+//                 const ctx = finalCanvas.getContext('2d');
+//                 ctx.fillStyle = '#ffffff';
+//                 ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
+//                 ctx.fillStyle = '#075e54';
+//                 ctx.font = 'bold 24px monospace';
+//                 ctx.textAlign = 'center';
+//                 ctx.textBaseline = 'middle';
+//                 ctx.fillText(password, finalCanvas.width / 2, finalCanvas.height / 2);
+                
+//                 document.getElementById('downloadFinalBtn').onclick = () => {
+//                     const link = document.createElement('a');
+//                     link.download = `dom_chat_password_${password}.png`;
+//                     link.href = finalCanvas.toDataURL();
+//                     link.click();
+//                 };
+                
+//                 document.getElementById('enterChatBtn').onclick = () => {
+//                     currentUserId = password;
+//                     localStorage.setItem("userId", password);
+//                     modal.remove();
+//                     loadUserProfile();
+//                     checkVipAccess().then(() => {
+//                         startChatListener();
+//                     });
+//                 };
+//             };
+            
+//             document.getElementById('switchToLogin').onclick = () => {
+//                 mode = 'login';
+//                 renderModal();
+//             };
+//         }
+//     }
+    
+//     renderModal();
+// }
+
+
+//     function showRegisterModal() {
+//     const modal = document.createElement('div');
+//     modal.className = 'modal';
+//     modal.style.display = 'flex';
+//     modal.style.alignItems = 'center';
+//     modal.style.justifyContent = 'center';
+//     document.body.appendChild(modal);
+    
+//     let mode = 'login';
+    
+//     function renderModal() {
+//         if (mode === 'login') {
+//             modal.innerHTML = `
+//                 <div class="modal-content" style="width: 320px; max-width: 90%; text-align: center;">
+//                     <h3>🏠 Шверника 15 | Дом Чат</h3>
+//                     <p style="font-size: 14px; color: #666; margin: 8px 0;">Введите пароль</p>
+//                     <input type="text" id="loginPassword" placeholder="Пароль" maxlength="5" style="width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 12px;">
+//                     <button id="loginBtn" style="background: #075e54; color: white; border: none; padding: 12px; border-radius: 24px; width: 100%; margin: 8px 0; cursor: pointer;">Войти</button>
+//                     <div style="margin-top: 16px;">
+//                         <span id="switchToRegister" style="color: #075e54; cursor: pointer; font-size: 14px;">✨ Создать профиль</span>
+//                     </div>
+//                 </div>
+//             `;
+            
+//             document.getElementById('loginBtn').onclick = async () => {
+//                 const password = document.getElementById('loginPassword').value.trim();
+//                 if (!password) {
+//                     alert('Введите пароль');
+//                     return;
+//                 }
+                
+//                 const userRef = db.collection("neighbours").doc(password);
+//                 const userDoc = await userRef.get();
+                
+//                 if (userDoc.exists) {
+//                     currentUserId = password;
+//                     localStorage.setItem("userId", password);
+//                     modal.remove();
+//                     loadUserProfile();
+//                     checkVipAccess().then(() => {
+//                         startChatListener();
+//                     });
+//                 } else {
+//                     alert('Неверный пароль');
+//                 }
+//             };
+            
+//             document.getElementById('loginPassword').onkeypress = (e) => {
+//                 if (e.key === 'Enter') {
+//                     document.getElementById('loginBtn').click();
+//                 }
+//             };
+            
+//             document.getElementById('switchToRegister').onclick = () => {
+//                 mode = 'register';
+//                 renderModal();
+//             };
+//         } else {
+//             modal.innerHTML = `
+//                 <div class="modal-content" style="width: 320px; max-width: 90%; text-align: center;">
+//                     <h3>🏠 Шверника 15 | Дом Чат</h3>
+//                     <input type="text" id="userName" placeholder="Ваше имя (можно изменить)" style="width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 12px;">
+//                     <div style="display: flex; gap: 8px; margin: 8px 0;">
+//                         <input type="text" id="userPassword" placeholder="Пароль (5 символов)" maxlength="5" style="flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 12px;">
+//                         <button id="generatePasswordBtn" style="background: #667781; color: white; border: none; padding: 0 16px; border-radius: 12px; cursor: pointer;">🎲</button>
+//                     </div>
+//                     <button id="registerBtn" style="background: #075e54; color: white; border: none; padding: 12px; border-radius: 24px; width: 100%; margin: 8px 0; cursor: pointer;">Зарегистрироваться</button>
+//                     <div style="margin-top: 16px;">
+//                         <span id="switchToLogin" style="color: #667781; cursor: pointer; font-size: 14px;">← Уже есть пароль? Войти</span>
+//                     </div>
+//                 </div>
+//             `;
+            
+//             const passwordInput = document.getElementById('userPassword');
+            
+//             document.getElementById('generatePasswordBtn').onclick = () => {
+//                 const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+//                 let pass = '';
+//                 for (let i = 0; i < 5; i++) {
+//                     pass += chars[Math.floor(Math.random() * chars.length)];
+//                 }
+//                 passwordInput.value = pass;
+//             };
+            
+//             document.getElementById('registerBtn').onclick = async () => {
+//                 const name = document.getElementById('userName').value.trim();
+//                 const password = passwordInput.value.trim();
+                
+//                 if (!name || !password) {
+//                     alert('Заполните имя и пароль');
+//                     return;
+//                 }
+                
+//                 if (password.length !== 5) {
+//                     alert('Пароль должен быть 5 символов');
+//                     return;
+//                 }
+                
+//                 const userRef = db.collection("neighbours").doc(password);
+//                 const userDoc = await userRef.get();
+                
+//                 if (userDoc.exists) {
+//                     alert('Этот пароль уже занят. Придумайте другой.');
+//                     return;
+//                 }
+                
+//                 await userRef.set({
+//                     name: name,
+//                     phone: "",
+//                     flat: "",
+//                     avatar: "",
+//                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
+//                 });
+                
+//                 // Показываем поздравление с паролем
+//                 modal.innerHTML = `
+//                     <div class="modal-content" style="width: 320px; max-width: 90%; text-align: center;">
+//                         <h3>🎉 Добро пожаловать, ${escapeHtml(name)}!</h3>
+//                         <p style="font-size: 14px; color: #666; margin: 8px 0;">Ваш пароль для входа:</p>
+//                         <canvas id="finalPasswordCanvas" width="200" height="60" style="display: block; margin: 8px auto; border: 1px solid #ddd; border-radius: 8px; background: white;"></canvas>
+//                         <button id="downloadFinalBtn" style="background: #075e54; color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 14px; margin: 8px;">💾 Скачать картинку</button>
+//                         <button id="enterChatBtn" style="background: #075e54; color: white; border: none; padding: 12px; border-radius: 24px; width: 100%; margin: 8px 0; cursor: pointer;">Войти в чат</button>
+//                     </div>
+//                 `;
+                
+//                 const finalCanvas = document.getElementById('finalPasswordCanvas');
+//                 const ctx = finalCanvas.getContext('2d');
+//                 ctx.fillStyle = '#ffffff';
+//                 ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
+//                 ctx.fillStyle = '#075e54';
+//                 ctx.font = 'bold 24px monospace';
+//                 ctx.textAlign = 'center';
+//                 ctx.textBaseline = 'middle';
+//                 ctx.fillText(password, finalCanvas.width / 2, finalCanvas.height / 2);
+                
+//                 document.getElementById('downloadFinalBtn').onclick = () => {
+//                     const link = document.createElement('a');
+//                     link.download = `dom_chat_password_${password}.png`;
+//                     link.href = finalCanvas.toDataURL();
+//                     link.click();
+//                 };
+                
+//                 document.getElementById('enterChatBtn').onclick = () => {
+//                     currentUserId = password;
+//                     localStorage.setItem("userId", password);
+//                     modal.remove();
+//                     loadUserProfile();
+//                     checkVipAccess().then(() => {
+//                         startChatListener();
+//                     });
+//                 };
+//             };
+            
+//             document.getElementById('switchToLogin').onclick = () => {
+//                 mode = 'login';
+//                 renderModal();
+//             };
+//         }
+//     }
+    
+//     renderModal();
+// }
 
 // Загрузка аватара при загрузке профиля
     
@@ -1151,6 +1529,36 @@
     };
 
     cancelEditBtn.onclick = closeEditPanel;
+
+    document.getElementById('deleteMsgBtn').onclick = async () => {
+    if (!editingMsgId) return;
+    
+    const confirmed = confirm('Удалить сообщение? Отменить нельзя.');
+    if (!confirmed) return;
+    
+    const collectionName = editingCollection || (currentRoom === 'main' ? 'chatcontent' : 'viproom');
+    await db.collection(collectionName).doc(editingMsgId).delete();
+    
+    // Удаляем сообщение из DOM сразу
+    const msgElement = document.getElementById(`msg-${editingMsgId}`);
+    if (msgElement) {
+        msgElement.remove();
+    }
+    
+    closeEditPanel();
+};
+
+//     document.getElementById('deleteMsgBtn').onclick = async () => {
+//     if (!editingMsgId) return;
+    
+//     const confirmed = confirm('Удалить сообщение? Отменить нельзя.');
+//     if (!confirmed) return;
+    
+//     const collectionName = editingCollection || (currentRoom === 'main' ? 'chatcontent' : 'viproom');
+//     await db.collection(collectionName).doc(editingMsgId).delete();
+    
+//     closeEditPanel();
+// };
     
     // Функция переключения комнат
     function switchRoom(room) {
