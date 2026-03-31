@@ -520,7 +520,9 @@
     <div class="tabs">
         <button class="tab-btn active" data-tab="chat">💬 Чат</button>
         <button class="tab-btn" data-tab="announcements">📢 Доска</button>
-        <button class="tab-btn" data-tab="goodmood">😂 Веселое</button>
+        <button class="tab-btn" data-tab="analytics">📊 Аналитика</button>
+        <button class="tab-btn" data-tab="complaints">📝 Обращения</button>
+        <!-- <button class="tab-btn" data-tab="goodmood">😂 Смех</button> -->
     </div>
     <div class="content">
         <div id="chat" class="tab-pane active">
@@ -564,7 +566,38 @@
         </div>
         <div id="announcements" class="tab-pane"><div class="announcements-list" id="announcementsList"></div></div>
         <div id="stories" class="tab-pane"><div class="article-container" style="padding:20px;"><h2>История дома</h2><p>Здесь будет статья о доме.</p></div></div>
-        <div id="goodmood" class="tab-pane"><div class="goodmood-list" id="jokesList"></div></div>
+        <div id="complaints" class="tab-pane">
+            <div style="padding: 16px;">
+                <!-- Форма -->
+                <div style="background: white; border-radius: 16px; padding: 16px; margin-bottom: 20px;">
+                    <h3 style="margin-bottom: 16px; font-size: 18px;">📝 Создать обращение</h3>
+                    <textarea id="complaintText" placeholder="Опишите проблему..." style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 12px; font-size: 14px; resize: vertical; min-height: 100px; margin-bottom: 12px;"></textarea>
+                    
+                    <div style="margin-bottom: 12px;">
+                        <label style="margin-right: 20px;">
+                            <input type="radio" name="complaintType" value="public" checked> Публично
+                        </label>
+                        <label>
+                            <input type="radio" name="complaintType" value="anonymous"> Анонимно
+                        </label>
+                    </div>
+                    
+                    <input type="text" id="complaintFlat" placeholder="Номер квартиры (необязательно)" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 12px; font-size: 14px; margin-bottom: 12px;">
+                    
+                    <button id="submitComplaintBtn" style="background: #075e54; color: white; border: none; padding: 12px; border-radius: 24px; width: 100%; font-weight: 600; cursor: pointer;">Отправить</button>
+                </div>
+                
+                <!-- Список обращений -->
+                <div id="complaintsList" style="display: flex; flex-direction: column; gap: 12px;"></div>
+                
+                <!-- Счетчик -->
+                <div id="complaintsCount" style="background: #e9f0e6; border-radius: 12px; padding: 12px; text-align: center; margin-top: 16px; font-weight: 600;"></div>
+            </div>
+        </div>
+        <!-- <div id="goodmood" class="tab-pane"><div class="goodmood-list" id="jokesList"></div></div> -->
+        <div id="analytics" class="tab-pane">
+            <iframe id="analyticsFrame" style="width: 100%; height: 100%; border: none; background: white;"></iframe>
+        </div>
     </div>
 </div>
 
@@ -1427,25 +1460,103 @@
             </div>
         `;
     }
-    
-    function loadJokes() {
-        db.collection("content").where("type", "==", "joke").limit(50).onSnapshot(snapshot => {
-            const container = document.getElementById('jokesList');
+
+    // Загрузка обращений
+function loadComplaints() {
+    db.collection("complaints")
+        .orderBy("timestamp", "desc")
+        .onSnapshot(snapshot => {
+            const container = document.getElementById('complaintsList');
+            if (!container) return;
+            
             container.innerHTML = '';
+            let totalCount = 0;
+            
             snapshot.forEach(doc => {
-                const joke = doc.data();
-                container.innerHTML += `
-                    <div class="card">
-                        <div>${marked.parse(joke.text)}</div>
-                        <div class="card-meta">
-                            <span>👌 ${joke.seenBy?.length || 0}</span>
-                            <button class="seen-btn" data-id="${doc.id}" data-col="content">Видел</button>
+                const c = doc.data();
+                totalCount++;
+                
+                if (c.isAnonymous) {
+                    // Анонимное обращение
+                    const date = c.timestamp ? c.timestamp.toDate().toLocaleString() : '';
+                    container.innerHTML += `
+                        <div style="background: #f5f5f5; border-radius: 12px; padding: 12px; border-left: 4px solid #667781;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-size: 13px; color: #667781;">🔒 Анонимное обращение</span>
+                                <span style="font-size: 11px; color: #aaa;">${date}</span>
+                            </div>
+                            <div style="margin-top: 8px; font-size: 14px;">+1 обращение</div>
                         </div>
-                    </div>
-                `;
+                    `;
+                } else {
+                    // Публичное обращение
+                    const date = c.timestamp ? c.timestamp.toDate().toLocaleString() : '';
+                    const flatInfo = c.flat ? `, кв. ${c.flat}` : '';
+                    container.innerHTML += `
+                        <div style="background: white; border-radius: 12px; padding: 12px; border: 1px solid #e9edef;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <span style="font-weight: 600; color: #075e54;">${escapeHtml(c.userName)}${flatInfo}</span>
+                                <span style="font-size: 11px; color: #aaa;">${date}</span>
+                            </div>
+                            <div style="font-size: 14px; line-height: 1.4;">${escapeHtml(c.text)}</div>
+                        </div>
+                    `;
+                }
             });
+            
+            document.getElementById('complaintsCount').innerHTML = `📊 Всего обращений: ${totalCount}`;
         });
+}
+
+// Отправка обращения
+document.getElementById('submitComplaintBtn')?.addEventListener('click', async () => {
+    const text = document.getElementById('complaintText').value.trim();
+    if (!text) {
+        alert('Напишите текст обращения');
+        return;
     }
+    
+    const isAnonymous = document.querySelector('input[name="complaintType"]:checked').value === 'anonymous';
+    const flat = document.getElementById('complaintFlat').value.trim();
+    
+    const complaintData = {
+        text: text,
+        isAnonymous: isAnonymous,
+        flat: flat || "",
+        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        userId: currentUserId
+    };
+    
+    if (!isAnonymous) {
+        complaintData.userName = currentUserData?.name || "Житель";
+    }
+    
+    await db.collection("complaints").add(complaintData);
+    
+    // Очистка формы
+    document.getElementById('complaintText').value = '';
+    document.getElementById('complaintFlat').value = '';
+    document.querySelector('input[name="complaintType"][value="public"]').checked = true;
+});
+    
+    // function loadJokes() {
+    //     db.collection("content").where("type", "==", "joke").limit(50).onSnapshot(snapshot => {
+    //         const container = document.getElementById('jokesList');
+    //         container.innerHTML = '';
+    //         snapshot.forEach(doc => {
+    //             const joke = doc.data();
+    //             container.innerHTML += `
+    //                 <div class="card">
+    //                     <div>${marked.parse(joke.text)}</div>
+    //                     <div class="card-meta">
+    //                         <span>👌 ${joke.seenBy?.length || 0}</span>
+    //                         <button class="seen-btn" data-id="${doc.id}" data-col="content">Видел</button>
+    //                     </div>
+    //                 </div>
+    //             `;
+    //         });
+    //     });
+    // }
     
     // Обработка "видел" для объявлений и анекдотов
     document.getElementById('announcementsList')?.addEventListener('click', async (e) => {
@@ -1628,11 +1739,35 @@
     }
     loadAnnouncements();
     loadResidents();
-    loadJokes();
+    loadComplaints();
+    // loadJokes();
 
     document.getElementById('mainRoomBtn')?.addEventListener('click', () => switchRoom('main'));
     document.getElementById('vipRoomBtn')?.addEventListener('click', () => switchRoom('vip'));
 
+</script>
+
+<script>
+    // Функция загрузки
+function loadAnalytics() {
+    const iframe = document.getElementById('analyticsFrame');
+    iframe.src = 'avito_analytics.html';
+}
+
+// Добавить в обработчик клика по вкладкам
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.onclick = () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.tab).classList.add('active');
+        
+        // ЭТО ДОБАВИТЬ
+        if (btn.dataset.tab === 'analytics') {
+            loadAnalytics();
+        }
+    };
+});
 </script>
 
 </body>
